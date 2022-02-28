@@ -1,7 +1,10 @@
 from vpython import *
 
 # Metric units
-g = 9.81 # m/s^2
+g = 3*9.81 # m/s^2
+damping_factor = 0.67
+
+n_balls = 100
 
 box_width = 700 # m, could also calculate from n_layers
 box_height = 700 # m
@@ -13,7 +16,7 @@ gap_between_pegs = 0.06 # m, horizontal gap between pegs
 gap_between_layers = 0.04 # m, vertical gap between layers
 n_layers = 5
 
-ball_radius = 0.01 # m
+ball_radius = 0.005 #0.01 # m
 ball_mass = 0.2 # kg
 
 # Initialize pegs (next: keep list of pegs)
@@ -38,12 +41,17 @@ floor_level = -n_layers*gap_between_layers # really "wall start level"
 # Generate ball above first peg (next: randomly generate balls in window above)
 # Starting with zero velocity
 
-offcenter = 0.0012
-initial_ball_pos = center_v + vector(offcenter, 0.6*gap_between_layers, 0)
-ball = sphere(pos=initial_ball_pos, radius=ball_radius)
-ball.mass = ball_mass
-ball.v = vector(0, 0, 0)
-ball.a = vector(0, -g, 0)
+balls = []
+for _ in range(n_balls):
+    offcenter = (2*random() - 1)*0.0015 # random range is 0 to 1
+    initial_ball_pos = center_v + vector(offcenter, 0.6*gap_between_layers, 0)
+    ball = sphere(pos=initial_ball_pos, radius=ball_radius)
+    ball.mass = ball_mass
+    ball.v = vector(0, 0, 0)
+    ball.a = vector(0, -g, 0)
+    ball.touchdown = False
+    balls.append(ball)
+
 dt = 0.0002
 frame_rate = 200
 # if dt is smaller, frame rate has to be larger?
@@ -58,21 +66,28 @@ def intersection(ball):
             # reverse component of velocity along normal vector
             normal_v = proj(ball.v, c2c)
             ball.v -= 2*normal_v
-            ball.v *= 0.75 #damping
+            ball.v *= damping_factor
             ball.pos += ball.v*dt
             ball.v += ball.a*dt
             ball.pos += ball.v*dt
             ball.v += ball.a*dt
             break
 
-touchdown = False
-while not touchdown:
+all_done = False
+while not all_done:
     rate(frame_rate)
-    ball.pos += ball.v*dt
-    ball.v += ball.a*dt
-    intersection(ball)
-    if ball.pos.y < floor_level:
-        touchdown = True
+    all_done = True
+    for ball in balls:
+        if not ball.touchdown:
+            all_done = False
+            ball.pos += ball.v*dt
+            ball.v += ball.a*dt
+            intersection(ball)
+            if ball.pos.y < floor_level:
+                ball.touchdown = True
+
+# Bin and print statistics?
+# Update positions in parallel? Parallel programming
 
 # Keep list of balls?
 # On each run, check if ball has hit floor
